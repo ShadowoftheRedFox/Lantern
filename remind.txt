@@ -1,0 +1,41 @@
+
+function circleInter(home: Point, dest: Point, circleCenter: Point, circleRadius: Number): Point {
+    var a: Number = Math.pow((dest.x - home.x), 2) + Math.pow((dest.y - home.y), 2);
+    var b: Number = 2 * (((dest.x - home.x) * (home.x - circleCenter.x)) + ((dest.y - home.y) * (home.y - circleCenter.y)));
+    var c: Number = Math.pow(circleCenter.x, 2) + Math.pow(circleCenter.y, 2) + Math.pow(home.x, 2) + Math.pow(home.y, 2) - (2 * ((circleCenter.x * home.x) + (circleCenter.y * home.y))) - Math.pow(circleRadius, 2);
+
+    var coef: Number = b * b - 4 * a * c;
+    var k1: Number = 0;
+    var k2: Number = 0;
+
+    var ptA: Point = new Point();
+    var ptB: Point = new Point();
+
+    if (coef == 0) {
+        //trace("only one point");
+        k1 = -b / (2 * a);
+    } else if (coef > 0) {
+        k1 = (-b - Math.sqrt(coef)) / (2 * a);
+        k2 = (-b + Math.sqrt(coef)) / (2 * a);
+        trace("Two points (" + coef + ") " + k1 + "," + k2);
+    }
+    //Si coerf < 0, no points
+
+
+    //On retourne le point le plus proche de "home"
+    if (k1 != 0) {
+        ptA = new Point(home.x + (k1 * (dest.x - home.x)), home.y + (k1 * (dest.y - home.y)));
+        var distA: Number = ZoMathTools.distance(home, ptA);
+
+        if (k2 != 0) {
+            ptB = new Point(home.x + (k2 * (dest.x - home.x)), home.y + (k2 * (dest.y - home.y)));
+            var distB: Number = ZoMathTools.distance(home, ptB);
+
+
+            if (distA < distB) return ptA;
+            else return ptB;
+        } else return ptA;
+    }
+
+    return new Point();
+}

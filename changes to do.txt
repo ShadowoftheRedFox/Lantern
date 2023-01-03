@@ -1,0 +1,4 @@
+add the resize detection system (class and crash handler)
+also change declaration to fit
+
+error proof some utility function (update general)
