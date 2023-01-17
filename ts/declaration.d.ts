@@ -235,7 +235,7 @@ declare global {
          * Check if at least one of the key inside if the array is pressed.
          * @param array An array of key to check.
          */
-        pressed(array: any[]): boolean
+        pressed(array: string[]): boolean
         array: string[]
         map: { [name: string]: boolean }
     }
@@ -287,7 +287,7 @@ declare global {
          */
         clickOver(x: number, y: number, w: number, h: number): boolean
 
-        getCursorsVector(id: number): Vector2D
+        getCursorVector(id: number): Vector2D
     }
 
     /**

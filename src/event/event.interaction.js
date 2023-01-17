@@ -188,13 +188,18 @@ MouseTrackerManager.checkOver = function (x, y, w, h, old = false) {
     }
 };
 
-//TODO get the point where the cursor start clicking, and floow to get a vector
-MouseTrackerManager.getCursorsVector = function (id = 0) {
+//TODO get the point where the cursor start clicking, and follow to get a vector
+MouseTrackerManager.getCursorVector = function (id = 0) {
+    if (isNaN(id)) id = 0;
     const spawn = this.spawnCoos[id];
     const now = this.trueMove[id];
     if (!spawn || !now) return new Vector2D();
-    // console.log(new Vector2D().from(new Point2D().from(spawn), new Point2D().from(now)));
     return new Vector2D().from(new Point2D().from(spawn), new Point2D().from(now));
+};
+
+MouseTrackerManager.getClickSpawn = function (id = 0) {
+    if (isNaN(id)) id = 0;
+    return this.spawnCoos[id];
 };
 
 function KeyboardTrackerManager() {

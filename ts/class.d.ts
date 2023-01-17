@@ -42,7 +42,7 @@ declare global {
         multiply(scalar: number): Vector2D
         divide(scalar: number): Vector2D
         length(): number
-        normalise(): number
+        normalize(): Vector2D
         /**
          * Vector from ptA to ptB.
          */

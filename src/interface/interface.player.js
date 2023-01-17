@@ -27,6 +27,15 @@ class GamePlayer extends GameInterfaces {
 
         /**@type {Light[]} */
         this.lightSources = [];
+        /**@type {GameObject[]} */
+        this.object = [];
+
+        /**@type {number[]} */
+        this.lightsSwitchedOff = [];
+        /**@type {{[key:string]: number}} */
+        this.timeOut = {
+            b: 0
+        };
 
         /**
          * Amount of pixels between two point around the light aura.
@@ -34,7 +43,7 @@ class GamePlayer extends GameInterfaces {
          * Must be a positiv integer and non zero!
          * @type {number}
          */
-        this.lightQuality = 1;
+        this.graphicQuality = 3;
 
         this.debug = false;
     }
@@ -50,12 +59,34 @@ class GamePlayer extends GameInterfaces {
 
         ctx.clearRect(0, 0, Width, Height);
 
+        // render all objects
+        this.object.forEach(object => {
+            ctx.fillStyle = object.color;
+            ctx.strokeStyle = "black";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(object.points.last(0).x, object.points.last(0).y);
+            object.points.forEach(point => {
+                ctx.lineTo(point.x, point.y);
+            });
+            ctx.fill();
+            ctx.stroke();
+            ctx.closePath();
+
+            if (this.debug) {
+                object.points.forEach(point => {
+                    this.circle(ctx, point.x, point.y);
+                });
+                this.circle(ctx, object.x, object.y);
+            }
+        });
+
         // render all light sources
         this.lightSources.forEach(light => {
-            if (light.on === true) {
+            if (!this.lightsSwitchedOff.includes(light.id)) {
                 const gradient = ctx.createRadialGradient(light.x, light.y, 0, light.x, light.y, light.radius);
                 gradient.addColorStop(0, light.color);
-                gradient.addColorStop(1, this.debug ? "red" : "#00000000");
+                gradient.addColorStop(1, this.debug ? "red" : "#ffb00000");
                 ctx.fillStyle = gradient;
                 ctx.beginPath();
                 if (light.render[0]) {
@@ -100,19 +131,23 @@ class GamePlayer extends GameInterfaces {
         ctx.closePath();
         ctx.globalAlpha = 1;
 
-        ctx.fillStyle = "red";
-        ctx.strokeStyle = "red";
-        ctx.lineWidth = 5;
-        const v = MouseTrackerManager.getCursorsVector(0);
-        ctx.beginPath();
-        ctx.moveTo(Width / 2, Height / 2);
-        // console.log(v.getX(), v.getY());
-        ctx.lineTo(Width / 2 + v.getX(), Height / 2 + v.getY());
-        ctx.fill();
-        ctx.stroke();
-        ctx.closePath();
-
         this.needsUpdate = false;
+
+        if (MouseTrackerManager.holding) {
+            ctx.fillStyle = "red";
+            ctx.strokeStyle = "red";
+            ctx.lineWidth = 5;
+            const v = MouseTrackerManager.getCursorVector(0).normalize();
+            const s = MouseTrackerManager.getClickSpawn(0);
+            ctx.beginPath();
+            ctx.moveTo(s.x, s.y);
+            // console.log(v.getX(), v.getY());
+            ctx.lineTo(s.x + v.getX() * 40, s.y + v.getY() * 40);
+            ctx.fill();
+            ctx.stroke();
+            ctx.closePath();
+            this.needsUpdate = true;
+        }
     }
 
     /**
@@ -127,6 +162,14 @@ class GamePlayer extends GameInterfaces {
             // re position every light sources
             this.lightSources.forEach(light => {
                 this.moveLight(light, Math.floor(scope.w * light.px), Math.floor(scope.h * light.py));
+                light.points.forEach((point, id) => {
+                    light.render[id] = this.circleInter(light, point);
+                });
+            });
+
+            // re position every objects
+            this.object.forEach(obj => {
+                this.moveObject(obj, Math.floor(scope.w * obj.px), Math.floor(scope.h * obj.py));
             });
 
             this.resized = false;
@@ -135,7 +178,7 @@ class GamePlayer extends GameInterfaces {
         //TODO change to vectorial movement
         //TODO implement mobile movement
         // player movement
-        let up = false, down = false, left = false, right = false;
+        let up = false, down = false, left = false, right = false, mouse = false;
         let speed = 5;
         if (KeyboardTrackerManager.pressed(GameConfig.keyboard.up)) {
             up = true;
@@ -151,6 +194,36 @@ class GamePlayer extends GameInterfaces {
         }
         if (this.xor(up, down) && this.xor(left, right)) {
             speed = this.diagonaleSpeed;
+        }
+        if (KeyboardTrackerManager.pressed(["b"]) && this.timeOut.b + 500 <= Date.now()) {
+            this.debug = !this.debug;
+            this.timeOut.b = Date.now();
+        }
+
+        // do the mouse movement if not moving by keyboard{
+        //BUG
+        if (MouseTrackerManager.holding && !(up || down || left || right)) {
+            const v = MouseTrackerManager.getCursorVector(0).normalize();
+            let speedX = v.getX() * 5;
+            let speedY = v.getY() * 5;
+            this.x += speedX;
+            this.y += speedY;
+
+            // move the player light accordingly to the player
+            const playerLight = this.getLightById(0);
+            // this.moveLight(playerLight, this.x + (speedX / speedX) * this.playerRadius * 3, this.y + (speedY / speedY) * this.playerRadius * 3);
+            // update relativ pos of the player light
+            playerLight.px = playerLight.x / scope.w;
+            playerLight.py = playerLight.y / scope.h;
+
+
+            this.x = this.x.clamp(this.playerRadius * 2, scope.w - this.playerRadius * 2);
+            this.y = this.y.clamp(this.playerRadius * 2, scope.h - this.playerRadius * 2);
+
+            this.px = this.x / scope.w;
+            this.py = this.y / scope.h;
+
+            this.needsUpdate = true;
         }
 
         if (up || down || left || right) {
@@ -174,7 +247,12 @@ class GamePlayer extends GameInterfaces {
             }
 
             // move the player light accordingly to the player
-            this.moveLight(this.lightSources[0], this.x + speedX, this.y + speedY);
+            const playerLight = this.getLightById(0);
+            this.moveLight(playerLight, this.x + speedX, this.y + speedY);
+            // update relativ pos of the player light
+            playerLight.px = playerLight.x / scope.w;
+            playerLight.py = playerLight.y / scope.h;
+
 
             this.x = this.x.clamp(this.playerRadius * 2, scope.w - this.playerRadius * 2);
             this.y = this.y.clamp(this.playerRadius * 2, scope.h - this.playerRadius * 2);
@@ -195,23 +273,41 @@ class GamePlayer extends GameInterfaces {
                 px: 0.5,
                 py: 0.5,
                 radius: 150,
-                color: "#ffe055",
-                id: 0,
-                points: this.getPointsPosInCricle(150, this.x + this.playerRadius * 3, this.y + this.playerRadius * 3),
+                color: "#ffe055b0",
+                id: this.lightSources.length,
+                points: this.getPointsPosInCircle(150, this.x + this.playerRadius * 3, this.y + this.playerRadius * 3),
+                render: [],
+                on: true
+            });
+
+            this.lightSources.push({
+                x: scope.w / 2,
+                y: scope.h / 2,
+                px: 0.5,
+                py: 0.5,
+                radius: 150,
+                color: "#ffe055b0",
+                id: this.lightSources.length,
+                points: this.getPointsPosInCircle(150, scope.w / 2, scope.h / 2),
                 render: [],
                 on: true
             });
         }
 
+        // put the first object
+        if (this.object.length === 0) {
+            this.constructObject(4 * scope.w / 5, 4 * scope.h / 5, 80, "circle", false, true, "grey", 0);
+        }
+
         // detect collision with player
         this.lightSources.forEach(light => {
             // only check close enough light
-            if (this.argument(this.x, this.y, light.x, light.y) <= light.radius + this.playerRadius * 2) {
+            if (light.on === true && this.argument(this.x, this.y, light.x, light.y) <= light.radius + this.playerRadius * 2) {
                 //switch off the light is the player is on it
                 if (this.pointArg(this, light) <= this.playerRadius * 1.5) {
-                    light.on = false;
+                    this.lightsSwitchedOff.push(light.id);
                 } else {
-                    light.on = true;
+                    this.lightsSwitchedOff.splice(this.lightsSwitchedOff.indexOf(light.id), 1);
                     light.points.forEach((point, id) => {
                         light.render[id] = this.circleInter(light, point);
                     });
@@ -219,14 +315,48 @@ class GamePlayer extends GameInterfaces {
             }
         });
 
+        //TODO collisiosn with objects (light and player)
 
-        // debugger;.2
+        // debugger;
+    }
+
+    /**
+     * @param {number} id 
+     * @returns {Light | null} 
+     */
+    getLightById(id) {
+        for (let i = 0; i < this.lightSources.length; i++) {
+            if (this.lightSources[i].id == id) {
+                return this.lightSources[i];
+            }
+        }
+        return null;
     }
 
     moveLight(light, x, y) {
+        let shiftX = light.x - x;
+        let shiftY = light.y - y;
         light.x = x;
         light.y = y;
-        light.points = this.getPointsPosInCricle(light.radius, x, y);
+
+        // move the points by the difference in coos
+        light.points.forEach(point => {
+            point.x -= shiftX;
+            point.y -= shiftY;
+        });
+    }
+
+    moveObject(object, x, y) {
+        let shiftX = object.x - x;
+        let shiftY = object.y - y;
+        object.x = x;
+        object.y = y;
+
+        // move the points by the difference in coos
+        object.points.forEach(point => {
+            point.x -= shiftX;
+            point.y -= shiftY;
+        });
     }
 
     xor(a, b) {
@@ -243,7 +373,7 @@ class GamePlayer extends GameInterfaces {
     }
 
     getPointNumberFromCircle(radius) {
-        return (Math.PI * radius) / this.lightQuality;
+        return (Math.PI * radius) / this.graphicQuality;
     }
 
     /**@param {Point[]} points*/
@@ -259,7 +389,7 @@ class GamePlayer extends GameInterfaces {
             }
         });
 
-        return Math.ceil(distance / this.lightQuality);
+        return Math.ceil(distance / this.graphicQuality);
     }
 
     argument(x1, y1, x2, y2) {
@@ -270,7 +400,7 @@ class GamePlayer extends GameInterfaces {
         return this.argument(p1.x, p1.y, p2.x, p2.y);
     }
 
-    getPointsPosInCricle(radius, x, y) {
+    getPointsPosInCircle(radius, x, y) {
         const pointsNumber = this.getPointNumberFromCircle(radius);
         const angle = (Math.PI * 2) / pointsNumber;
         const points = [];
@@ -324,9 +454,9 @@ class GamePlayer extends GameInterfaces {
             k1 = (-b - Math.sqrt(coef)) / (2 * a);
             k2 = (-b + Math.sqrt(coef)) / (2 * a);
         }
-        //Si coerf < 0, no points
+        // Si coef < 0, no points
 
-        //On retourne le point le plus proche de "home"
+        // On retourne le point le plus proche de "home"
         if (k1 != 0) {
             ptA = { x: home.x + (k1 * (dest.x - home.x)), y: home.y + (k1 * (dest.y - home.y)) };
             var distA = this.pointArg(home, ptA);
@@ -343,5 +473,56 @@ class GamePlayer extends GameInterfaces {
         }
 
         return { x: dest.x, y: dest.y };
+    }
+
+    /**
+     * @param {number} x 
+     * @param {number} y 
+     * @param {number} size 
+     * @param {"rectangle"|"triangle"|"circle"} form 
+     * @param {boolean} transparent 
+     * @param {boolean} physical 
+     * @param {string} color
+     * @param {number} rotation
+     */
+    constructObject(x = 0, y = 0, size = 1, form = "rectangle", transparent = false, physical = false, color = "grey", rotation = 0) {
+        /**@type {GameObject} */
+        const o = {
+            x: x,
+            y: y,
+            physical: physical,
+            transparent: transparent,
+            points: [],
+            px: x / window.game.w,
+            py: y / window.game.h,
+            id: this.object.length,
+            color: color,
+            form: form,
+            rotation: rotation,
+            size: size
+        };
+
+        switch (form) {
+            case "circle":
+                o.points = this.getPointsPosInCircle(size / 2, x, y);
+                break;
+            case "rectangle":
+                break;
+            case "triangle":
+                break;
+            default:
+                WindowManager.fatal(new Error(`Unknown form "${form}"`));
+                break;
+        }
+
+        this.object.push(o);
+    }
+
+    rotatePoints(points, angle) {
+        points.forEach(point => {
+            let tempx = point.x, tempy = point.y;
+            point.x = tempx * Math.cos(angle) - tempy * Math.sin(angle);
+            point.y = tempx * Math.sin(angle) + tempy * Math.cos(angle);
+        });
     }
 }

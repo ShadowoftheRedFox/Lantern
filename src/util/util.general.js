@@ -300,12 +300,13 @@ class Vector2D {
         return new Vector2D(this.getX() * scalar, this.getY() * scalar);
     }
     divide(scalar = 1) {
+        if (scalar === 0 || isNaN(scalar)) return this;
         return new Vector2D(this.getX() / scalar, this.getY() / scalar);
     }
     length() {
         return Math.sqrt(this.getX() * this.getX() + this.getY() * this.getY());
     }
-    normalise() {
+    normalize() {
         return this.divide(this.length());
     }
     from(ptA = new Point2D(), ptB = new Point2D()) {
