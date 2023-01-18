@@ -17,6 +17,7 @@ const GameConfig = {
         up: ["ArrowUp", "z"],
         down: ["ArrowDown", "s"],
         right: ["ArrowRight", "d"],
-        left: ["ArrowLeft", "q"]
+        left: ["ArrowLeft", "q"],
+        run: ["Shift", "r"]
     }
 };

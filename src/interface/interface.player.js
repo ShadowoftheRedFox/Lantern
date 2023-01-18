@@ -131,19 +131,17 @@ class GamePlayer extends GameInterfaces {
         ctx.closePath();
         ctx.globalAlpha = 1;
 
+        // things after this will be cleared once the condition is false
         this.needsUpdate = false;
 
         if (MouseTrackerManager.holding) {
-            ctx.fillStyle = "red";
             ctx.strokeStyle = "red";
             ctx.lineWidth = 5;
             const v = MouseTrackerManager.getCursorVector(0).normalize();
             const s = MouseTrackerManager.getClickSpawn(0);
             ctx.beginPath();
             ctx.moveTo(s.x, s.y);
-            // console.log(v.getX(), v.getY());
             ctx.lineTo(s.x + v.getX() * 40, s.y + v.getY() * 40);
-            ctx.fill();
             ctx.stroke();
             ctx.closePath();
             this.needsUpdate = true;
@@ -178,8 +176,11 @@ class GamePlayer extends GameInterfaces {
         //TODO change to vectorial movement
         //TODO implement mobile movement
         // player movement
-        let up = false, down = false, left = false, right = false, mouse = false;
-        let speed = 5;
+        let up = false, down = false, left = false, right = false, run = false;
+        if (KeyboardTrackerManager.pressed(GameConfig.keyboard.run)) {
+            run = true;
+        }
+        let speed = 5 * (run ? 2 : 1);
         if (KeyboardTrackerManager.pressed(GameConfig.keyboard.up)) {
             up = true;
         }
@@ -193,29 +194,30 @@ class GamePlayer extends GameInterfaces {
             left = true;
         }
         if (this.xor(up, down) && this.xor(left, right)) {
-            speed = this.diagonaleSpeed;
+            speed = this.diagonaleSpeed * (run ? 2 : 1);
         }
         if (KeyboardTrackerManager.pressed(["b"]) && this.timeOut.b + 500 <= Date.now()) {
             this.debug = !this.debug;
             this.timeOut.b = Date.now();
         }
 
-        // do the mouse movement if not moving by keyboard{
-        //BUG
+        // do the mouse movement if not moving by keyboard
         if (MouseTrackerManager.holding && !(up || down || left || right)) {
             const v = MouseTrackerManager.getCursorVector(0).normalize();
-            let speedX = v.getX() * 5;
-            let speedY = v.getY() * 5;
+            //TODO make it so the speed increase the farthest the cursor is form the spawn
+            let speedX = v.getX() * 5 * (run ? 2 : 1);
+            let lightMoveX = v.getX() * this.playerRadius * 3;
+            let speedY = v.getY() * 5 * (run ? 2 : 1);
+            let lightMoveY = v.getY() * this.playerRadius * 3;
             this.x += speedX;
             this.y += speedY;
 
             // move the player light accordingly to the player
             const playerLight = this.getLightById(0);
-            // this.moveLight(playerLight, this.x + (speedX / speedX) * this.playerRadius * 3, this.y + (speedY / speedY) * this.playerRadius * 3);
+            this.moveLight(playerLight, this.x + lightMoveX, this.y + lightMoveY);
             // update relativ pos of the player light
             playerLight.px = playerLight.x / scope.w;
             playerLight.py = playerLight.y / scope.h;
-
 
             this.x = this.x.clamp(this.playerRadius * 2, scope.w - this.playerRadius * 2);
             this.y = this.y.clamp(this.playerRadius * 2, scope.h - this.playerRadius * 2);

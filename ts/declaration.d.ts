@@ -48,11 +48,6 @@ declare global {
             right: string[]
             left: string[]
             run: string[]
-            debug: string[]
-            pause: string[]
-            back: string[]
-            confirm: string[]
-            inventory: string[]
         }
     }
 
