@@ -90,7 +90,7 @@ String.prototype.contains = function (string) {
  * @return {Number} A number in the range (min, max)
  */
 Number.prototype.clamp = function (min, max) {
-    if (!min || !max) return this;
+    if (isNaN(min) || isNaN(max)) return this;
     return Math.min(Math.max(this, min), max);
 };
 

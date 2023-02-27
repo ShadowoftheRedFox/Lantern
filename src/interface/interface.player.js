@@ -203,11 +203,13 @@ class GamePlayer extends GameInterfaces {
 
         // do the mouse movement if not moving by keyboard
         if (MouseTrackerManager.holding && !(up || down || left || right)) {
-            const v = MouseTrackerManager.getCursorVector(0).normalize();
-            //TODO make it so the speed increase the farthest the cursor is form the spawn
-            let speedX = v.getX() * 5 * (run ? 2 : 1);
+            var v = MouseTrackerManager.getCursorVector(0);
+            // make it so the speed increase the farthest the cursor is form the spawn
+            let max = (v.length().clamp(0, 40)) / 40;
+            v = v.normalize();
+            let speedX = v.getX() * 5 * (run ? 2 : 1) * max;
             let lightMoveX = v.getX() * this.playerRadius * 3;
-            let speedY = v.getY() * 5 * (run ? 2 : 1);
+            let speedY = v.getY() * 5 * (run ? 2 : 1) * max;
             let lightMoveY = v.getY() * this.playerRadius * 3;
             this.x += speedX;
             this.y += speedY;
@@ -218,12 +220,6 @@ class GamePlayer extends GameInterfaces {
             // update relativ pos of the player light
             playerLight.px = playerLight.x / scope.w;
             playerLight.py = playerLight.y / scope.h;
-
-            this.x = this.x.clamp(this.playerRadius * 2, scope.w - this.playerRadius * 2);
-            this.y = this.y.clamp(this.playerRadius * 2, scope.h - this.playerRadius * 2);
-
-            this.px = this.x / scope.w;
-            this.py = this.y / scope.h;
 
             this.needsUpdate = true;
         }
@@ -254,13 +250,6 @@ class GamePlayer extends GameInterfaces {
             // update relativ pos of the player light
             playerLight.px = playerLight.x / scope.w;
             playerLight.py = playerLight.y / scope.h;
-
-
-            this.x = this.x.clamp(this.playerRadius * 2, scope.w - this.playerRadius * 2);
-            this.y = this.y.clamp(this.playerRadius * 2, scope.h - this.playerRadius * 2);
-
-            this.px = this.x / scope.w;
-            this.py = this.y / scope.h;
 
             this.needsUpdate = true;
 
@@ -320,6 +309,12 @@ class GamePlayer extends GameInterfaces {
         //TODO collisiosn with objects (light and player)
 
         // debugger;
+
+        this.x = this.x.clamp(this.playerRadius * 2, scope.w - this.playerRadius * 2);
+        this.y = this.y.clamp(this.playerRadius * 2, scope.h - this.playerRadius * 2);
+
+        this.px = this.x / scope.w;
+        this.py = this.y / scope.h;
     }
 
     /**
