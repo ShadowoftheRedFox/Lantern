@@ -61,6 +61,7 @@ class GamePlayer extends GameInterfaces {
 
         // render all objects
         this.object.forEach(object => {
+            this.rotatePoints(object.points, this.degToradiant(1), object.x + object.w / 2, object.y + object.h / 2);
             ctx.fillStyle = object.color;
             ctx.strokeStyle = "black";
             ctx.lineWidth = 1;
@@ -287,7 +288,7 @@ class GamePlayer extends GameInterfaces {
 
         // put the first object
         if (this.object.length === 0) {
-            this.constructObject(4 * scope.w / 5, 4 * scope.h / 5, 80, "circle", false, true, "grey", 0);
+            this.constructObject(4 * scope.w / 5, 4 * scope.h / 5, { size: 80, w: 100, h: 20 }, "rectangle", false, true, "grey", this.degToradiant(45));
         }
 
         // detect collision with player
@@ -373,6 +374,10 @@ class GamePlayer extends GameInterfaces {
         return (Math.PI * radius) / this.graphicQuality;
     }
 
+    getPointNumberFromLine(x, y, xp, yp) {
+        return this.argument(x, y, xp, yp) / this.graphicQuality;
+    }
+
     /**@param {Point[]} points*/
     getPointNumberFromForm(points) {
         if (points.length < 3) return 0;
@@ -408,6 +413,58 @@ class GamePlayer extends GameInterfaces {
                 y: Math.sin(angle * i) * radius + y
             });
         }
+
+        return points;
+    }
+
+    getPointsPosInRectangle(x, y, w, h) {
+        var offset;
+        const points = [];
+
+        // top
+        // from top left to top right
+        offset = this.argument(x, y, x + w, y) / this.getPointNumberFromLine(x, y, x + w, y);
+        for (let i = 0; i < this.getPointNumberFromLine(x, y, x + w, y); i++) {
+            points.push({
+                x: x + i * offset,
+                y: y
+            });
+        }
+        // corner
+        points.push({ x: x + w, y: y });
+        // left
+        // from top right to down right
+        offset = this.argument(x + w, y, x + w, y + h) / this.getPointNumberFromLine(x + w, y, x + w, y + h);
+        for (let i = 0; i < this.getPointNumberFromLine(x + w, y, x + w, y + h); i++) {
+            points.push({
+                x: x + w,
+                y: y + i * offset
+            });
+        }
+        // corner
+        points.push({ x: x + w, y: y + h });
+        // down
+        // from down right to down left
+        offset = this.argument(x + w, y + h, x, y + h) / this.getPointNumberFromLine(x + w, y + h, x, y + h);
+        for (let i = this.getPointNumberFromLine(x + w, y, x + w, y + h); i > 0; i--) {
+            points.push({
+                x: x + w - i * offset,
+                y: y + h
+            });
+        }
+        // corner
+        points.push({ x: x, y: y + h });
+        // right
+        // from down left to top left
+        offset = this.argument(x, y + h, x, y) / this.getPointNumberFromLine(x, y + h, x, y);
+        for (let i = this.getPointNumberFromLine(x, y + h, x, y); i > 0; i--) {
+            points.push({
+                x: x,
+                y: y + h - i * offset
+            });
+        }
+        // corner
+        points.push({ x: x, y: y });
 
         return points;
     }
@@ -475,15 +532,14 @@ class GamePlayer extends GameInterfaces {
     /**
      * @param {number} x 
      * @param {number} y 
-     * @param {number} size 
+     * @param {{ size: number, w: number, h: number }} data 
      * @param {"rectangle"|"triangle"|"circle"} form 
      * @param {boolean} transparent 
      * @param {boolean} physical 
      * @param {string} color
      * @param {number} rotation
      */
-    constructObject(x = 0, y = 0, size = 1, form = "rectangle", transparent = false, physical = false, color = "grey", rotation = 0) {
-        /**@type {GameObject} */
+    constructObject(x = 0, y = 0, data = { size: 1, w: 0, h: 0 }, form = "rectangle", transparent = false, physical = false, color = "grey", rotation = 0) {
         const o = {
             x: x,
             y: y,
@@ -496,14 +552,17 @@ class GamePlayer extends GameInterfaces {
             color: color,
             form: form,
             rotation: rotation,
-            size: size
+            size: data.size | 1,
+            w: data.w | 0,
+            h: data.h | 0,
         };
 
         switch (form) {
             case "circle":
-                o.points = this.getPointsPosInCircle(size / 2, x, y);
+                o.points = this.getPointsPosInCircle(o.size / 2, x, y);
                 break;
             case "rectangle":
+                o.points = this.getPointsPosInRectangle(x, y, o.w, o.h);
                 break;
             case "triangle":
                 break;
@@ -512,14 +571,42 @@ class GamePlayer extends GameInterfaces {
                 break;
         }
 
+        this.rotatePoints(o.points, rotation, x + o.w / 2, y + o.h / 2);
+
         this.object.push(o);
     }
 
-    rotatePoints(points, angle) {
-        points.forEach(point => {
-            let tempx = point.x, tempy = point.y;
-            point.x = tempx * Math.cos(angle) - tempy * Math.sin(angle);
-            point.y = tempx * Math.sin(angle) + tempy * Math.cos(angle);
+    /**
+     * @param {{x:number, y:number}[]} points 
+     * @param {number} angle in radiant 
+     * @param {number} center_x
+     * @param {number} center_y
+     */
+    rotatePoints(points, angle, center_x, center_y) {
+        const s = Math.sin(angle);
+        const c = Math.cos(angle);
+        let xnew = 0;
+        let ynew = 0;
+        points.forEach(p => {
+            // translate point back to origin:
+            p.x -= center_x;
+            p.y -= center_y;
+
+            // rotate point
+            xnew = p.x * c - p.y * s;
+            ynew = p.x * s + p.y * c;
+
+            // translate point back:
+            p.x = xnew + center_x;
+            p.y = ynew + center_y;
         });
+    }
+
+    degToradiant(angle) {
+        return (angle / 360) * Math.PI * 2;
+    }
+
+    randiantToDeg(angle) {
+        return (angle / Math.PI * 2) * 360;
     }
 }
